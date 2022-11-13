@@ -1,37 +1,17 @@
 /*
- * Copyright 2016-2022 NXP
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * o Redistributions of source code must retain the above copyright notice, this list
- *   of conditions and the following disclaimer.
- *
- * o Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- *
- * o Neither the name of NXP Semiconductor, Inc. nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * @file    K32L2B31A_labs_diplomado_iot
+ * @author Nestor Gamarra
+ * @version 0.00
+ * @date 05/10/2022
+ * @brief   Funcion principal main.
+ * @details
+  			v0.00 proyecto base
  */
+/* TODO: insert other include files here. */
 
-/**
- * @file    K32L2B31A_labs_diplomado_iot.c
- * @brief   Application entry point.
- */
+#include <lpuart0.h>
+#include "fsl_device_registers.h"
+#include "fsl_common.h"
 #include <stdio.h>
 #include "board.h"
 #include "peripherals.h"
@@ -39,34 +19,116 @@
 #include "clock_config.h"
 #include "K32L2B31A.h"
 #include "fsl_debug_console.h"
-/* TODO: insert other include files here. */
+#include "fsl_adc16.h"
 
-/* TODO: insert other definitions and declarations here. */
+#define BOARD_LED_GPIO_1     BOARD_LED_GREEN_GPIO
+#define BOARD_LED_GPIO_PIN_1 BOARD_LED_GREEN_GPIO_PIN
+#define BOARD_LED_GPIO_2     BOARD_LED_RED_GPIO
+#define BOARD_LED_GPIO_PIN_2 BOARD_LED_RED_GPIO_PIN
 
-/*
- * @brief   Application entry point.
- */
+volatile uint32_t g_systickCounter;
+volatile static uint8_t i = 0 ;
+float Vout;
+float LUX ;
+float Iout;
+uint8_t dato_lpuart0;
+/* LPUART0_IRQn interrupt handler */
+void LPUART0_SERIAL_RX_TX_IRQHANDLER(void) {
+  uint32_t intStatus;
+  /* Reading all interrupt flags of status registers */
+  intStatus = LPUART_GetStatusFlags(LPUART0_PERIPHERAL);
+
+  /* Flags can be cleared by reading the status register and reading/writing data registers.
+    See the reference manual for details of each flag.
+    The LPUART_ClearStatusFlags() function can be also used for clearing of flags in case the content of data/FIFO regsiter is not used.
+    For example:
+        status_t status;
+        status = LPUART_ClearStatusFlags(LPUART0_PERIPHERAL, intStatus);
+  */
+
+  /* Place your code here */
+
+  if ((kLPUART_RxDataRegFullFlag) & intStatus) {
+
+  dato_lpuart0 = LPUART_ReadByte(LPUART0);
+
+  }
+
+  /* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F
+     Store immediate overlapping exception return operation might vector to incorrect interrupt. */
+  #if defined __CORTEX_M && (__CORTEX_M == 4U)
+    __DSB();
+  #endif
+}
+
+void SysTick_Handler(void){
+if (g_systickCounter != 0U){
+    g_systickCounter--;
+
+    }
+    }
+
+void SysTick_DelayTicks(uint32_t n)
+    {
+       g_systickCounter = n;
+while (g_systickCounter != 0U){
+    }
+    }
+
+
 int main(void) {
 
-    /* Init board hardware. */
-    BOARD_InitBootPins();
-    BOARD_InitBootClocks();
-    BOARD_InitBootPeripherals();
+        BOARD_InitBootPins();
+        BOARD_InitBootClocks();
+        BOARD_InitBootPeripherals();
 #ifndef BOARD_INIT_DEBUG_CONSOLE_PERIPHERAL
-    /* Init FSL debug console. */
-    BOARD_InitDebugConsole();
+        BOARD_InitDebugConsole();
+
 #endif
 
-    PRINTF("Hello World\r\n");
 
-    /* Force the counter to be placed into memory. */
-    volatile static int i = 0 ;
-    /* Enter an infinite loop, just incrementing a counter. */
-    while(1) {
-        i++ ;
-        /* 'Dummy' NOP to allow source level single stepping of
-            tight while() loop */
-        __asm volatile ("nop");
-    }
+
+
+
+if (SysTick_Config(SystemCoreClock / 1500U)){
+
+     }
+
+while(1)       {
+
+
+    			ADC16_SetChannelConfig(ADC0_PERIPHERAL, ADC0_CH0_CONTROL_GROUP, &ADC0_channelsConfig[0]);
+
+    	        SysTick_DelayTicks(2000U);
+    	        i++ ;
+
+    	        while (0U == (kADC16_ChannelConversionDoneFlag & ADC16_GetChannelStatusFlags(ADC0_PERIPHERAL, ADC0_CH0_CONTROL_GROUP))) {
+    	          }
+
+
+                Vout= (ADC16_GetChannelConversionValue(ADC0_PERIPHERAL, ADC0_CH0_CONTROL_GROUP) * (3.3 / 4096));
+		        LUX =  (2 * ( 3.3 -( 3.3 / ADC16_GetChannelConversionValue(ADC0_PERIPHERAL, ADC0_CH0_CONTROL_GROUP) )))*100;
+                Iout= ((Vout)/10000);
+
+            	PRINTF("ADC---> %d\r\n", ADC16_GetChannelConversionValue(ADC0_PERIPHERAL, ADC0_CH0_CONTROL_GROUP));
+               	PRINTF("LUX---> %.3f\r\n", LUX);
+               	PRINTF("Vout---> %.3f\r\n", Vout);
+               	PRINTF("Iout---> %f\r\n\n", Iout);
+
+
+    	        __asm volatile ("nop");
+
+
+    	        SysTick_DelayTicks(1000U);
+
+    	        GPIO_PortToggle(BOARD_LED_GPIO_1,1u << BOARD_LED_GPIO_PIN_1);
+    	        SysTick_DelayTicks(1000U);
+
+
+    	        GPIO_PortToggle(BOARD_LED_GPIO_2, 1u << BOARD_LED_GPIO_PIN_2);
+    	        SysTick_DelayTicks(1000);
+
+    	        }
+
     return 0 ;
 }
