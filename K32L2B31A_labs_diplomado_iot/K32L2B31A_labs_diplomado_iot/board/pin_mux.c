@@ -27,7 +27,7 @@ pin_labels:
 - {pin_num: '61', pin_signal: LCD_P44/PTD4/LLWU_P14/SPI1_SS/UART2_RX/TPM0_CH4/FXIO0_D4, label: 'J2[6]/D10/SPI1_PCS0/LCD_P44', identifier: LCD_P44}
 - {pin_num: '63', pin_signal: LCD_P46/ADC0_SE7b/PTD6/LLWU_P15/SPI1_MOSI/LPUART0_RX/SPI1_MISO/FXIO0_D6, label: 'J2[8]/D11/SPI1_MOSI/LCD_P46'}
 - {pin_num: '64', pin_signal: LCD_P47/PTD7/SPI1_MISO/LPUART0_TX/SPI1_MOSI/FXIO0_D7, label: 'J2[10]/D12/SPI1_MISO/LCD_P47'}
-- {pin_num: '62', pin_signal: LCD_P45/ADC0_SE6b/PTD5/SPI1_SCK/UART2_TX/TPM0_CH5/FXIO0_D5, label: 'J2[12]/D13/SPI1_SCK/LED1/LCD_P45', identifier: LED1}
+- {pin_num: '62', pin_signal: LCD_P45/ADC0_SE6b/PTD5/SPI1_SCK/UART2_TX/TPM0_CH5/FXIO0_D5, label: 'J2[12]/D13/SPI1_SCK/LED1/LCD_P45', identifier: LED1;led1}
 - {pin_num: '1', pin_signal: LCD_P48/PTE0/CLKOUT32K/SPI1_MISO/LPUART1_TX/RTC_CLKOUT/CMP0_OUT/I2C1_SDA, label: 'J2[18]/J4[9]/D14/I2C1_SDA/CMP0_OUT/LCD_P48', identifier: I2C1_SDA}
 - {pin_num: '2', pin_signal: LCD_P49/PTE1/SPI1_MOSI/LPUART1_RX/SPI1_MISO/I2C1_SCL, label: 'J2[20]/D15/I2C1_SCL/LCD_P49', identifier: I2C1_SCL}
 - {pin_num: '39', pin_signal: LCD_P12/PTB16/SPI1_MOSI/LPUART0_RX/TPM_CLKIN0/SPI1_MISO, label: 'J2[19]/LCD_P12'}
@@ -71,7 +71,7 @@ pin_labels:
 - {pin_num: '8', pin_signal: VREGIN, label: USB_REGIN, identifier: USB0_VREGIN}
 - {pin_num: '15', pin_signal: VREFL, label: GND}
 - {pin_num: '14', pin_signal: VREFH, label: 'J19[2]/P3V3_K32L2B'}
-- {pin_num: '19', pin_signal: PTE31/TPM0_CH4, label: LED2, identifier: LED2}
+- {pin_num: '19', pin_signal: PTE31/TPM0_CH4, label: LED2, identifier: LED2;led2}
 - {pin_num: '48', pin_signal: VLL3, label: 'J12[1]/P3V3_K32L2B'}
 - {pin_num: '49', pin_signal: VLL2/LCD_P4/PTC20, label: TP12/LCD_P4}
 - {pin_num: '50', pin_signal: VLL1/LCD_P5/PTC21, label: TP10/LCD_P5}
@@ -98,6 +98,7 @@ void BOARD_InitBootPins(void)
     BOARD_InitPins();
     BOARD_InitDEBUG_UARTPins();
     BOARD_InitLM35();
+    BOARD_Initsensorluz();
 }
 
 /* clang-format off */
@@ -105,7 +106,9 @@ void BOARD_InitBootPins(void)
  * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
 BOARD_InitPins:
 - options: {callFromInitBoot: 'true', prefix: BOARD_, coreID: core0, enableClock: 'true'}
-- pin_list: []
+- pin_list:
+  - {pin_num: '19', peripheral: GPIOE, signal: 'GPIO, 31', pin_signal: PTE31/TPM0_CH4, identifier: led2, direction: OUTPUT}
+  - {pin_num: '62', peripheral: GPIOD, signal: 'GPIO, 5', pin_signal: LCD_P45/ADC0_SE6b/PTD5/SPI1_SCK/UART2_TX/TPM0_CH5/FXIO0_D5, identifier: led1, direction: OUTPUT}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
@@ -118,6 +121,30 @@ BOARD_InitPins:
  * END ****************************************************************************************************************/
 void BOARD_InitPins(void)
 {
+    /* Port D Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortD);
+    /* Port E Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortE);
+
+    gpio_pin_config_t led1_config = {
+        .pinDirection = kGPIO_DigitalOutput,
+        .outputLogic = 0U
+    };
+    /* Initialize GPIO functionality on pin PTD5 (pin 62)  */
+    GPIO_PinInit(BOARD_led1_GPIO, BOARD_led1_PIN, &led1_config);
+
+    gpio_pin_config_t led2_config = {
+        .pinDirection = kGPIO_DigitalOutput,
+        .outputLogic = 0U
+    };
+    /* Initialize GPIO functionality on pin PTE31 (pin 19)  */
+    GPIO_PinInit(BOARD_led2_GPIO, BOARD_led2_PIN, &led2_config);
+
+    /* PORTD5 (pin 62) is configured as PTD5 */
+    PORT_SetPinMux(BOARD_led1_PORT, BOARD_led1_PIN, kPORT_MuxAsGpio);
+
+    /* PORTE31 (pin 19) is configured as PTE31 */
+    PORT_SetPinMux(BOARD_led2_PORT, BOARD_led2_PIN, kPORT_MuxAsGpio);
 }
 
 /* clang-format off */
@@ -456,10 +483,10 @@ void BOARD_InitBUTTONSPins(void)
 BOARD_InitLEDsPins:
 - options: {callFromInitBoot: 'false', prefix: BOARD_, coreID: core0, enableClock: 'true'}
 - pin_list:
-  - {pin_num: '19', peripheral: GPIOE, signal: 'GPIO, 31', pin_signal: PTE31/TPM0_CH4, direction: OUTPUT, gpio_init_state: 'true', slew_rate: slow, pull_select: down,
-    pull_enable: disable}
-  - {pin_num: '62', peripheral: GPIOD, signal: 'GPIO, 5', pin_signal: LCD_P45/ADC0_SE6b/PTD5/SPI1_SCK/UART2_TX/TPM0_CH5/FXIO0_D5, direction: OUTPUT, gpio_init_state: 'true',
-    slew_rate: slow, pull_select: down, pull_enable: disable}
+  - {pin_num: '19', peripheral: GPIOE, signal: 'GPIO, 31', pin_signal: PTE31/TPM0_CH4, identifier: LED2, direction: OUTPUT, gpio_init_state: 'true', slew_rate: slow,
+    pull_select: down, pull_enable: disable}
+  - {pin_num: '62', peripheral: GPIOD, signal: 'GPIO, 5', pin_signal: LCD_P45/ADC0_SE6b/PTD5/SPI1_SCK/UART2_TX/TPM0_CH5/FXIO0_D5, identifier: LED1, direction: OUTPUT,
+    gpio_init_state: 'true', slew_rate: slow, pull_select: down, pull_enable: disable}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
@@ -800,6 +827,32 @@ BOARD_InitLM35:
  * END ****************************************************************************************************************/
 void BOARD_InitLM35(void)
 {
+}
+
+/* clang-format off */
+/*
+ * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
+BOARD_Initsensorluz:
+- options: {callFromInitBoot: 'true', coreID: core0, enableClock: 'true'}
+- pin_list:
+  - {pin_num: '11', peripheral: ADC0, signal: 'SE, 3', pin_signal: ADC0_DP3/ADC0_SE3/PTE22/TPM2_CH0/UART2_TX/FXIO0_D6}
+ * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
+ */
+/* clang-format on */
+
+/* FUNCTION ************************************************************************************************************
+ *
+ * Function Name : BOARD_Initsensorluz
+ * Description   : Configures pin routing and optionally pin electrical features.
+ *
+ * END ****************************************************************************************************************/
+void BOARD_Initsensorluz(void)
+{
+    /* Port E Clock Gate Control: Clock enabled */
+    CLOCK_EnableClock(kCLOCK_PortE);
+
+    /* PORTE22 (pin 11) is configured as ADC0_SE3 */
+    PORT_SetPinMux(PORTE, 22U, kPORT_PinDisabledOrAnalog);
 }
 /***********************************************************************************************************************
  * EOF
